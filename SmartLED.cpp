@@ -155,22 +155,22 @@ void SmartLED::updateLamp()
       if (devModeConnected && millis() - millisAtLastTimeUpdate > 30000)
       {
         // Setup the time with appropriate time-zone.
-        configTime(TIMEZONE * 3600, 0, "pool.ntp.org", "time.nist.gov");
+        configTime(TIMEZONE, 0, "pool.ntp.org", "time.nist.gov");
         time_t currentTime = time(nullptr);
 #ifdef USE_SERIAL_DEBUG
         Serial.printf("Got time from internet: %s\n", ctime(&currentTime));
 #endif
-        struct tm tm_currentTime;
-        gmtime_r(&currentTime, &tm_currentTime);
+        struct tm *tm_currentTime = localtime(&currentTime);
+        //gmtime_r(&currentTime, &tm_currentTime);
         // Update the variable showing that we just tried to get the current time.
         millisAtLastTimeUpdate = millis();
         // Check if the time sync was successful.
-        if (tm_currentTime.tm_year + 1900 < 2000)
+        if (tm_currentTime->tm_year + 1900 < 2000)
         {
           // Something went wrong, and we are probably stuck on 1970
           // (time hasn't been updated yet from the server).
 #ifdef USE_SERIAL_DEBUG
-          Serial.printf("Error getting time from internet: (year = %d)\n", tm_currentTime.tm_year + 1900);
+          Serial.printf("Error getting time from internet: (year = %d)\n", tm_currentTime->tm_year + 1900);
 #endif
           return;
         }
@@ -178,34 +178,38 @@ void SmartLED::updateLamp()
         if (!tEn) return;
         
 #ifdef USE_SERIAL_DEBUG
-        Serial.printf("Current time: %02d:%02d\n", tm_currentTime.tm_hour + TIMEZONE, tm_currentTime.tm_min);
+        Serial.printf("Current time: %02d:%02d\n", tm_currentTime->tm_hour, tm_currentTime->tm_min);
 #endif
         // Check to see if the current hour and minute match the time to
         // power on the lamp.
-        if (tm_currentTime.tm_hour + TIMEZONE == tOnH && tm_currentTime.tm_min == tOnM)
+        if (tm_currentTime->tm_hour == tOnH && tm_currentTime->tm_min == tOnM)
         {
           if (!pwr)
           {
-            // Update the power button on the webserver.
-            if (devModeConnected) updateWebpageParams(devIP.toString().c_str());
             // We need to turn on the lamp.
             pwr = true;
+            // Update the power button on the webserver.
+            if (devModeConnected) updateWebpageParams(devIP.toString().c_str());
             // Signal the update to the state machine.
             currentState = LAMP_UPDT_STATE;
+            // Store the current time for the fade animation.
+            t = millis();
           }
         }
         // Check to see if the current hour and minute match the time to
         // power off the lamp.
-        if (tm_currentTime.tm_hour + TIMEZONE == tOffH && tm_currentTime.tm_min == tOffM)
+        if (tm_currentTime->tm_hour == tOffH && tm_currentTime->tm_min == tOffM)
         {
           if (pwr)
           {
-            // Update the power button on the webserver.
-            if (devModeConnected) updateWebpageParams(devIP.toString().c_str()); 
             // We need to turn on the lamp.
             pwr = false;
+            // Update the power button on the webserver.
+            if (devModeConnected) updateWebpageParams(devIP.toString().c_str()); 
             // Signal the update to the state machine.
             currentState = LAMP_UPDT_STATE;
+            // Store the current time for the fade animation.
+            t = millis();
           }
         }
       }
@@ -217,7 +221,8 @@ void SmartLED::updateLamp()
       {
         // The loop might not be fast enough to keep up, the mul variable allows
         // the lamp to skip steps if the counter is lagging.
-        float mul = float(millis() - t) / float(tFade);
+        // Prevent divide by zero.
+        float mul = float(millis() - t) / float(tFade + 0.001);
         if (pwr) f += 0.001 * mul;
         else     f -= 0.001 * mul;
         // Update t with the most recent value of millis() to prepare
@@ -230,7 +235,7 @@ void SmartLED::updateLamp()
       }
       if (pwr && f >= 1.0)
       {
-        f = 1;
+        f = 1.0;
         currentState = LAMP_IDLE_STATE;
       }
       if (!pwr && f <= 0.0)

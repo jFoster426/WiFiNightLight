@@ -8,7 +8,7 @@
 #define LAMP_IDLE_STATE         0
 #define LAMP_UPDT_STATE         1
 
-#define TIMEZONE               (-8)
+#define TIMEZONE               (-8 * 3600)
 
 #define LAMP_EEPROM_UPDT_TIME  (5 * 60 * 1000)
 
@@ -17,7 +17,7 @@
 #define USE_EEPROM
 
 // Comment this out to disable Serial output.
-#define USE_SERIAL_DEBUG
+//#define USE_SERIAL_DEBUG
 
 #include "Arduino.h"
 #include <EEPROM.h>

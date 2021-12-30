@@ -764,8 +764,8 @@ function setup()
       print('Server says: ', e.data);
       var serverData = e.data.split('#');
       // Disregard serverData[0] because the string started with a '#'.
-      if (serverData == '1') powerState = true;
-      else                   powerState = false;
+      if (serverData[1] == '1') powerState = true;
+      else                      powerState = false;
       colorTheta = parseFloat(serverData[2]);
       r = parseFloat(serverData[3]);
       g = parseFloat(serverData[4]);
